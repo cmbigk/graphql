@@ -26,7 +26,11 @@ async function fetchXPData(jwt) {
     },
     body: JSON.stringify({ query })
   });
-  return (await res.json()).data.transaction;
+    const json = await res.json();
+  if (!json.data || !json.data.transaction) {
+    throw new Error(json.errors?.[0]?.message || "Failed to fetch XP data");
+  }
+  return json.data.transaction;
 }
 
 async function fetchPassFailData(jwt) {
