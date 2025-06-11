@@ -1,0 +1,98 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #f3f4f6;
+  margin: 0;
+  padding: 20px;
+  color: #333;
+}
+
+.login-box {
+  max-width: 360px;
+  margin: 80px auto;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.login-box h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+.login-box input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.login-box button {
+  width: 100%;
+  padding: 12px;
+  font-size: 1rem;
+  color: #fff;
+  background: #3b82f6;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.login-box button:hover {
+  background: #2563eb;
+}
+.error {
+  color: #b91c1c;
+  margin-top: 8px;
+  text-align: center;
+}
+
+.profile {
+  max-width: 960px;
+  margin: auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+.header h1 {
+  margin: 0;
+}
+.header button {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.header button:hover {
+  background: #dc2626;
+}
+
+.charts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+}
+.chart-box {
+  flex: 1;
+  min-width: 280px;
+  background: #fff;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.chart-box h3 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+}
+
+.chart {
+  overflow-x: auto;
+}
+.chart svg {
+  display: block;
+  margin: 0 auto;
+}
