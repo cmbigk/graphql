@@ -342,13 +342,13 @@ async function fetchUserData(jwt) {
       }
     }
 
-    auditsDone: audit_aggregate(where: { auditorId: { _is_null: false } }) {
+    auditsDone: audit_aggregate(where: { userId: { _is_null: false } }) {
       aggregate {
         count
       }
     }
 
-    auditsReceived: audit_aggregate(where: { auditedId: { _is_null: false } }) {
+    auditsReceived: audit_aggregate(where: { auditorId: { _is_null: false } }) {
       aggregate {
         count
       }
