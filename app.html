@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>My GraphQL Profile</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f3f4f6;
+  margin: 0;
+  padding: 20px;
+  color: #333;
+}
+
+.login-box {
+  max-width: 360px;
+  margin: 80px auto;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.login-box h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+.login-box input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+.login-box button {
+  width: 100%;
+  padding: 12px;
+  font-size: 1rem;
+  color: #0ea209;
+  background: #70f63b;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.login-box button:hover {
+  background: #25eb3c;
+}
+.error {
+  color: #b91c1c;
+  margin-top: 8px;
+  text-align: center;
+}
+.debug {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 8px;
+  font-family: monospace;
+  font-size: 12px;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.profile {
+  max-width: 960px;
+  margin: auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+.header h1 {
+  margin: 0;
+}
+.header button {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.header button:hover {
+  background: #dc2626;
+}
+
+.charts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+}
+.chart-box {
+  flex: 1;
+  min-width: 280px;
+  background: #fff;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.chart-box h3 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+}
+
+.chart {
+  overflow-x: auto;
+}
+.chart svg {
+  display: block;
+  margin: 0 auto;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+</style>
+</head>
+<body>
+<div class="login-box" id="login-container">
+  <h2>Login</h2>
+  <input id="username" placeholder="Username or Email" />
+  <input id="password" type="password" placeholder="Password" />
+  <button id="login-btn">Login & View Profile</button>
+  <div id="error-msg" class="error"></div>
+  <div id="debug-info" class="debug" style="display:none;"></div>
+</div>
+
+<div id="profile-container" class="profile" style="display:none;">
+  <div class="header">
+    <h1>Welcome, <span id="user-login"></span>!</h1>
+    <button id="logout-btn">Logout</button>
+  </div>
+  <div class="charts">
+    <div class="chart-box">
+      <h3>XP per Project</h3>
+      <div id="xp-section" class="chart">
+        <div class="loading">Loading...</div>
+      </div>
+    </div>
+    <div class="chart-box">
+      <h3>Pass / Fail Ratio</h3>
+      <div id="graph-section" class="chart">
+        <div class="loading">Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const GRAPHQL_ENDPOINT = "https://01.gritlab.ax/api/graphql-engine/v1/graphql";
+const AUTH_ENDPOINT = "https://01.gritlab.ax/api/auth/signin";
+
+function showDebugInfo(info) {
+  const debugDiv = document.getElementById("debug-info");
+  debugDiv.textContent = typeof info === 'object' ? JSON.stringify(info, null, 2) : info;
+  debugDiv.style.display = "block";
+}
+
+async function login(username, password) {
+  try {
+    const res = await fetch(AUTH_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Basic " + btoa(`${username}:${password}`)
+      }
+    });
+
+    console.log("Auth response status:", res.status);
+    console.log("Auth response headers:", Object.fromEntries(res.headers.entries()));
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.log("Auth error response:", errorText);
+      throw new Error(`Authentication failed: ${res.status} ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    console.log("Full auth response:", data);
+    showDebugInfo(`Auth response: ${JSON.stringify(data, null, 2)}`);
+    
+    // Check for various token field names that might be used
+    const possibleTokens = [
+      data.token,
+      data.jwt, 
+      data.access_token,
+      data.accessToken,
+      data.authToken,
+      data.bearer_token,
+      data.bearerToken
+    ];
+
+    let token = possibleTokens.find(t => t && typeof t === 'string');
+
+    // Fix: Remove extra quotes if present (e.g., "\"eyJhbGciOi...\"" => "eyJhbGciOi...")
+    if (token && token.startsWith('"') && token.endsWith('"')) {
+      token = token.slice(1, -1);
+    }
+    if (token) token = token.trim();
+
+    if (!token) {
+      console.log("Available fields in response:", Object.keys(data));
+      throw new Error(`No token found in response. Available fields: ${Object.keys(data).join(', ')}`);
+    }
+
+    console.log("Token found:", token.substring(0, 50) + "...");
+
+    // Validate JWT format (should have 3 parts separated by dots)
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.log("Token parts:", parts.length);
+      console.log("Token preview:", token.substring(0, 50) + "...");
+      throw new Error(`Invalid JWT format: expected 3 parts, got ${parts.length}`);
+    }
+
+    // Try to decode the header to verify it's a valid JWT
+    try {
+      const header = JSON.parse(atob(parts[0].replace(/-/g, '+').replace(/_/g, '/')));
+      console.log("JWT header:", header);
+    } catch (decodeErr) {
+      console.log("Failed to decode JWT header:", decodeErr);
+      throw new Error("Token is not a valid JWT");
+    }
+    
+    return token;
+    
+  } catch (error) {
+    console.error("Login error details:", error);
+    showDebugInfo(`Login error: ${error.message}`);
+    throw error;
+  }
+}
+
+async function fetchUserAndXPData(jwt) {
+  const query = `
+  query {
+    userInfo: user {
+      id
+      campus
+      login
+      email
+      firstName
+      lastName
+      auditRatio
+      totalUp
+      totalUpBonus
+      totalDown
+    }
+
+    xpTransactions: transaction(
+      where: {
+        type: {_eq: "xp"}, 
+        _and: [
+          {object: {type: {_neq: "piscine"}}}, 
+          {path: {_nlike: "%piscine-js/%"}}, 
+          {path: {_nlike: "%checkpoint%"}}
+        ]
+      }
+      order_by: {createdAt: asc}
+    ) {
+      amount
+      path
+      object {
+        type
+        name
+      }
+      createdAt
+    }
+
+    xpSum: transaction_aggregate(where: { type: { _eq: "xp" } }) {
+      aggregate { 
+        sum { 
+          amount 
+        } 
+      }
+    }
+  }`;
+
+  console.log("Making GraphQL request with JWT:", jwt.substring(0, 20) + "...");
+
+  const res = await fetch(GRAPHQL_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${jwt}`
+    },
+    body: JSON.stringify({query})
+  });
+
+  console.log("GraphQL response status:", res.status);
+  console.log("GraphQL response headers:", Object.fromEntries(res.headers.entries()));
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.log("GraphQL error response:", errorText);
+    throw new Error(`GraphQL request failed: ${res.status} ${res.statusText} - ${errorText}`);
+  }
+
+  const result = await res.json();
+  console.log("GraphQL response:", result);
+  
+  if (result.errors) {
+    console.log("GraphQL errors:", result.errors);
+    throw new Error(`GraphQL errors: ${result.errors.map(e => e.message).join(', ')}`);
+  }
+
+  return result.data;
+}
+
+async function fetchPassFailData(jwt) {
+  const query = `
+  query {
+    progress(where: { isDone: { _eq: true } }) {
+      grade
+    }
+  }`;
+  
+  const res = await fetch(GRAPHQL_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${jwt}`
+    },
+    body: JSON.stringify({ query })
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.log("Pass/Fail GraphQL error:", errorText);
+    throw new Error(`GraphQL request failed: ${res.status} ${res.statusText}`);
+  }
+
+  const result = await res.json();
+  console.log("Pass/Fail response:", result);
+  
+  if (result.errors) {
+    throw new Error(`GraphQL errors: ${result.errors.map(e => e.message).join(', ')}`);
+  }
+
+  return result.data.progress;
+}
+
+function groupXPByProject(transactions) {
+  if (!transactions || !Array.isArray(transactions)) {
+    console.warn("No transactions data available");
+    return [];
+  }
+  
+  const grouped = {};
+  transactions.forEach(tx => {
+    const name = tx.object?.name || "Unknown Project";
+    grouped[name] = (grouped[name] || 0) + tx.amount;
+  });
+  
+  return Object.entries(grouped)
+    .map(([name, xp]) => ({ name, xp }))
+    .sort((a,b) => b.xp - a.xp)
+    .slice(0, 10);
+}
+
+function generateSVGBarChart(projects) {
+  if (!projects || projects.length === 0) {
+    return '<div style="text-align: center; padding: 20px; color: #666;">No XP data available</div>';
+  }
+
+  const barW = 60, gap = 10, chtH = 250;
+  const maxXP = Math.max(...projects.map(p => p.xp), 1);
+  
+  const bars = projects.map((p, i) => {
+    const h = Math.max((p.xp / maxXP) * 200, 2);
+    const x = i * (barW + gap);
+    const y = chtH - h;
+    
+    const displayName = p.name.length > 8 ? p.name.substring(0, 8) + '...' : p.name;
+    
+    return `
+      <g>
+        <rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="#10b981" rx="4" />
+        <text x="${x + barW/2}" y="${chtH + 15}" font-size="10" text-anchor="middle" fill="#333">${displayName}</text>
+        <text x="${x + barW/2}" y="${y - 5}" font-size="10" text-anchor="middle" fill="#333">${p.xp}</text>
+      </g>`;
+  }).join("");
+  
+  const width = Math.max(projects.length * (barW + gap), 400);
+  return `<svg width="100%" height="300" viewBox="0 0 ${width} 300">${bars}</svg>`;
+}
+
+function getPassFailRatio(progressList) {
+  if (!progressList || !Array.isArray(progressList)) {
+    return { pass: 0, fail: 0 };
+  }
+  
+  let pass = 0, fail = 0;
+  progressList.forEach(item => {
+    if (item.grade >= 100) {
+      pass++;
+    } else {
+      fail++;
+    }
+  });
+  return { pass, fail };
+}
+
+function generatePieChart({pass, fail}) {
+  const total = pass + fail;
+  
+  if (total === 0) {
+    return '<div style="text-align: center; padding: 20px; color: #666;">No progress data available</div>';
+  }
+  
+  const passPercentage = ((pass / total) * 100).toFixed(1);
+  const failPercentage = ((fail / total) * 100).toFixed(1);
+  
+  return `
+    <div style="display: flex; align-items: center; justify-content: center; gap: 20px;">
+      <div style="
+        width: 120px; 
+        height: 120px; 
+        border-radius: 50%; 
+        background: conic-gradient(#34d399 0deg ${(pass/total)*360}deg, #f87171 ${(pass/total)*360}deg 360deg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      ">
+        <div style="
+          width: 60px;
+          height: 60px;
+          background: white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: bold;
+          font-size: 12px;
+        ">${total}</div>
+      </div>
+      <div>
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+          <div style="width: 12px; height: 12px; background: #34d399; margin-right: 8px; border-radius: 2px;"></div>
+          <span>Pass: ${pass} (${passPercentage}%)</span>
+        </div>
+        <div style="display: flex; align-items: center;">
+          <div style="width: 12px; height: 12px; background: #f87171; margin-right: 8px; border-radius: 2px;"></div>
+          <span>Fail: ${fail} (${failPercentage}%)</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function handleLogin() {
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  const errorMsg = document.getElementById("error-msg");
+  const loginBtn = document.getElementById("login-btn");
+  const debugDiv = document.getElementById("debug-info");
+  
+  errorMsg.textContent = "";
+  debugDiv.style.display = "none";
+
+  if (!username || !password) {
+    errorMsg.textContent = "Please enter both username and password";
+    return;
+  }
+
+  loginBtn.textContent = "Logging in...";
+  loginBtn.disabled = true;
+
+  try {
+    console.log("Attempting login...");
+    const jwt = await login(username, password);
+    console.log("Login successful, JWT received");
+
+    const userData = await fetchUserAndXPData(jwt);
+    console.log("User data fetched:", userData);
+    
+    const displayName = userData.userInfo?.[0]?.login || 
+                       userData.userInfo?.[0]?.firstName || 
+                       username;
+    document.getElementById("user-login").textContent = displayName;
+
+    const xpProjects = groupXPByProject(userData.xpTransactions);
+    document.getElementById("xp-section").innerHTML = generateSVGBarChart(xpProjects);
+
+    try {
+      const pfData = await fetchPassFailData(jwt);
+      const ratio = getPassFailRatio(pfData);
+      document.getElementById("graph-section").innerHTML = generatePieChart(ratio);
+    } catch (pfError) {
+      console.warn("Could not fetch pass/fail data:", pfError);
+      document.getElementById("graph-section").innerHTML = 
+        '<div style="text-align: center; padding: 20px; color: #666;">Pass/Fail data not available</div>';
+    }
+
+    document.getElementById("login-container").style.display = "none";
+    document.getElementById("profile-container").style.display = "block";
+    
+  } catch (err) {
+    console.error("Login error:", err);
+    errorMsg.textContent = "Login failed: " + err.message;
+  } finally {
+    loginBtn.textContent = "Login & View Profile";
+    loginBtn.disabled = false;
+  }
+}
+
+function logout() {
+  document.getElementById("login-container").style.display = "block";
+  document.getElementById("profile-container").style.display = "none";
+  document.getElementById("username").value = "";
+  document.getElementById("password").value = "";
+  document.getElementById("error-msg").textContent = "";
+  document.getElementById("debug-info").style.display = "none";
+}
+
+document.getElementById("login-btn").addEventListener("click", handleLogin);
+document.getElementById("logout-btn").addEventListener("click", logout);
+
+document.getElementById("username").addEventListener("keypress", function(e) {
+  if (e.key === "Enter") handleLogin();
+});
+document.getElementById("password").addEventListener("keypress", function(e) {
+  if (e.key === "Enter") handleLogin();
+});
+</script>
+</body>
+</html>
