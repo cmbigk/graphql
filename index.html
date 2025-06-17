@@ -159,14 +159,25 @@ async function login(username, password) {
     throw new Error(`Authentication failed: ${res.status} ${res.statusText}`);
   }
 
-  const data = await res.json();
-  console.log("Auth response:", data);
-  
-  if (!data.token && !data.jwt) {
-    throw new Error("No token received from authentication");
+  // Try to parse as JSON, fallback to text
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    data = await res.text();
   }
-  
-  return data.token || data.jwt;
+
+  // If data is a string (JWT), return it
+  if (typeof data === "string" && data.length > 100) {
+    return data;
+  }
+
+  // If data is an object with token/jwt, return it
+  if (data.token || data.jwt) {
+    return data.token || data.jwt;
+  }
+
+  throw new Error("No token received from authentication");
 }
 
 async function fetchUserAndXPData(jwt) {
