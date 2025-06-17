@@ -54,7 +54,7 @@ body {
 }
 
 .profile {
-  max-width: 1200px;
+  max-width: 960px;
   margin: auto;
 }
 
@@ -79,66 +79,22 @@ body {
   background: #dc2626;
 }
 
-.user-info {
-  background: #fff;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  margin-bottom: 2rem;
-}
-
-.user-info h2 {
-  margin: 0 0 1rem;
-  color: #1f2937;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-}
-
-.info-item {
-  padding: 0.75rem;
-  background: #f8fafc;
-  border-radius: 6px;
-  border-left: 4px solid #3b82f6;
-}
-
-.info-item label {
-  display: block;
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin-bottom: 0.25rem;
-}
-
-.info-item .value {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #1f2937;
-}
-
 .charts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 2rem;
 }
-
 .chart-box {
+  flex: 1;
+  min-width: 280px;
   background: #fff;
-  padding: 1.5rem;
+  padding: 1rem;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
-
-.chart-box.full-width {
-  grid-column: 1 / -1;
-}
-
 .chart-box h3 {
   margin: 0 0 1rem;
-  font-size: 1.2rem;
-  color: #1f2937;
+  font-size: 1.1rem;
 }
 
 .chart {
@@ -153,44 +109,6 @@ body {
   text-align: center;
   padding: 20px;
   color: #666;
-}
-
-.projects-list {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.project-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.project-item:last-child {
-  border-bottom: none;
-}
-
-.project-name {
-  font-weight: 500;
-  color: #1f2937;
-}
-
-.project-xp {
-  color: #059669;
-  font-weight: 600;
-}
-
-.debug-info {
-  background: #f3f4f6;
-  padding: 1rem;
-  border-radius: 4px;
-  margin-top: 1rem;
-  font-family: monospace;
-  font-size: 0.875rem;
-  max-height: 200px;
-  overflow-y: auto;
 }
 </style>
 </head>
@@ -208,43 +126,16 @@ body {
     <h1>Welcome, <span id="user-login"></span>!</h1>
     <button id="logout-btn">Logout</button>
   </div>
-  
-  <div class="user-info">
-    <h2>Profile Information</h2>
-    <div class="info-grid" id="user-info-grid">
-      <div class="loading">Loading user information...</div>
-    </div>
-    <div id="debug-info" class="debug-info" style="display:none;">
-      <strong>Debug Information:</strong>
-      <pre id="debug-content"></pre>
-    </div>
-  </div>
-
   <div class="charts">
     <div class="chart-box">
-      <h3>XP per Project (Top 10)</h3>
+      <h3>XP per Project</h3>
       <div id="xp-section" class="chart">
         <div class="loading">Loading...</div>
       </div>
     </div>
-    
     <div class="chart-box">
-      <h3>Audit Activity</h3>
-      <div id="audit-section" class="chart">
-        <div class="loading">Loading...</div>
-      </div>
-    </div>
-    
-    <div class="chart-box full-width">
-      <h3>XP Progress Over Time</h3>
-      <div id="timeline-section" class="chart">
-        <div class="loading">Loading...</div>
-      </div>
-    </div>
-    
-    <div class="chart-box full-width">
-      <h3>Completed Projects</h3>
-      <div id="projects-section" class="projects-list">
+      <h3>Pass / Fail Ratio</h3>
+      <div id="graph-section" class="chart">
         <div class="loading">Loading...</div>
       </div>
     </div>
@@ -268,6 +159,7 @@ async function login(username, password) {
     throw new Error(`Authentication failed: ${res.status} ${res.statusText}`);
   }
 
+  // Try to parse as JSON, fallback to text
   let data;
   try {
     data = await res.json();
@@ -275,10 +167,12 @@ async function login(username, password) {
     data = await res.text();
   }
 
+  // If data is a string (JWT), return it
   if (typeof data === "string" && data.length > 100) {
     return data;
   }
 
+  // If data is an object with token/jwt, return it
   if (data.token || data.jwt) {
     return data.token || data.jwt;
   }
@@ -286,11 +180,10 @@ async function login(username, password) {
   throw new Error("No token received from authentication");
 }
 
-async function fetchUserData(jwt) {
-  // Fixed GraphQL query structure
+async function fetchUserAndXPData(jwt) {
   const query = `
   query {
-    user {
+    userInfo: user {
       id
       campus
       login
@@ -299,11 +192,11 @@ async function fetchUserData(jwt) {
       lastName
       auditRatio
       totalUp
+      totalUpBonus
       totalDown
-      createdAt
     }
 
-    transaction(
+    xpTransactions: transaction(
       where: {
         type: {_eq: "xp"}, 
         _and: [
@@ -323,36 +216,12 @@ async function fetchUserData(jwt) {
       createdAt
     }
 
-    transaction_aggregate(where: { type: { _eq: "xp" } }) {
+    xpSum: transaction_aggregate(where: { type: { _eq: "xp" } }) {
       aggregate { 
         sum { 
           amount 
         } 
       }
-    }
-
-    auditsDone: audit_aggregate(where: { auditorId: { _is_null: false } }) {
-      aggregate {
-        count
-      }
-    }
-
-    auditsReceived: audit_aggregate(where: { auditeeId: { _is_null: false } }) {
-      aggregate {
-        count
-      }
-    }
-
-    progress(
-      where: { isDone: { _eq: true } }
-      order_by: { updatedAt: desc }
-    ) {
-      object {
-        name
-        type
-      }
-      updatedAt
-      grade
     }
   }`;
 
@@ -379,87 +248,40 @@ async function fetchUserData(jwt) {
   return result.data;
 }
 
-function displayUserInfo(userData) {
-  // Fixed: user is now an object, not an array
-  const user = userData.user;
-  if (!user) {
-    document.getElementById("user-info-grid").innerHTML = 
-      '<div style="text-align: center; color: #666;">User information not available</div>';
-    
-    // Show debug info
-    document.getElementById("debug-info").style.display = "block";
-    document.getElementById("debug-content").textContent = JSON.stringify(userData, null, 2);
-    return;
+async function fetchPassFailData(jwt) {
+  const query = `
+  query {
+    progress(where: { isDone: { _eq: true } }) {
+      grade
+    }
+  }`;
+  
+  const res = await fetch(GRAPHQL_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${jwt}`
+    },
+    body: JSON.stringify({ query })
+  });
+
+  if (!res.ok) {
+    throw new Error(`GraphQL request failed: ${res.status} ${res.statusText}`);
   }
 
-  const totalXP = userData.transaction_aggregate?.aggregate?.sum?.amount || 0;
-  const auditsDone = userData.auditsDone?.aggregate?.count || 0;
-  const auditsReceived = userData.auditsReceived?.aggregate?.count || 0;
-  const completedCount = userData.progress?.length || 0;
+  const result = await res.json();
+  console.log("Pass/Fail response:", result);
   
-  // Calculate level (assuming 1000 XP per level)
-  const level = Math.floor(totalXP / 1000);
-  const nextLevelXP = (level + 1) * 1000;
-  const progressToNext = ((totalXP % 1000) / 1000) * 100;
+  if (result.errors) {
+    throw new Error(`GraphQL errors: ${result.errors.map(e => e.message).join(', ')}`);
+  }
 
-  const joinDate = user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown';
-
-  const infoHTML = `
-    <div class="info-item">
-      <label>Full Name</label>
-      <div class="value">${user.firstName || ''} ${user.lastName || ''}</div>
-    </div>
-    <div class="info-item">
-      <label>Email</label>
-      <div class="value">${user.email || 'Not provided'}</div>
-    </div>
-    <div class="info-item">
-      <label>Campus</label>
-      <div class="value">${user.campus || 'Not specified'}</div>
-    </div>
-    <div class="info-item">
-      <label>Join Date</label>
-      <div class="value">${joinDate}</div>
-    </div>
-    <div class="info-item">
-      <label>Total XP</label>
-      <div class="value">${totalXP.toLocaleString()}</div>
-    </div>
-    <div class="info-item">
-      <label>Current Level</label>
-      <div class="value">${level} (${progressToNext.toFixed(1)}% to ${level + 1})</div>
-    </div>
-    <div class="info-item">
-      <label>Audit Ratio</label>
-      <div class="value">${user.auditRatio?.toFixed(2) || '0.00'}</div>
-    </div>
-    <div class="info-item">
-      <label>Audits Done</label>
-      <div class="value">${auditsDone}</div>
-    </div>
-    <div class="info-item">
-      <label>Audits Received</label>
-      <div class="value">${auditsReceived}</div>
-    </div>
-    <div class="info-item">
-      <label>Completed Projects</label>
-      <div class="value">${completedCount}</div>
-    </div>
-    <div class="info-item">
-      <label>Total Up</label>
-      <div class="value">${user.totalUp || 0}</div>
-    </div>
-    <div class="info-item">
-      <label>Total Down</label>
-      <div class="value">${user.totalDown || 0}</div>
-    </div>
-  `;
-
-  document.getElementById("user-info-grid").innerHTML = infoHTML;
+  return result.data.progress;
 }
 
 function groupXPByProject(transactions) {
   if (!transactions || !Array.isArray(transactions)) {
+    console.warn("No transactions data available");
     return [];
   }
   
@@ -472,7 +294,7 @@ function groupXPByProject(transactions) {
   return Object.entries(grouped)
     .map(([name, xp]) => ({ name, xp }))
     .sort((a,b) => b.xp - a.xp)
-    .slice(0, 10);
+    .slice(0, 10); // Show top 10 projects
 }
 
 function generateSVGBarChart(projects) {
@@ -488,6 +310,7 @@ function generateSVGBarChart(projects) {
     const x = i * (barW + gap);
     const y = chtH - h;
     
+    // Truncate long project names
     const displayName = p.name.length > 8 ? p.name.substring(0, 8) + '...' : p.name;
     
     return `
@@ -502,101 +325,68 @@ function generateSVGBarChart(projects) {
   return `<svg width="100%" height="300" viewBox="0 0 ${width} 300">${bars}</svg>`;
 }
 
-function generateAuditChart(auditsDone, auditsReceived) {
-  const maxAudits = Math.max(auditsDone, auditsReceived, 1);
-  const barHeight = 40;
-  const chartHeight = 120;
-  
-  const doneWidth = (auditsDone / maxAudits) * 300;
-  const receivedWidth = (auditsReceived / maxAudits) * 300;
-  
-  return `
-    <svg width="100%" height="${chartHeight}" viewBox="0 0 400 ${chartHeight}">
-      <text x="0" y="20" font-size="12" fill="#333">Audits Done: ${auditsDone}</text>
-      <rect x="0" y="25" width="${doneWidth}" height="${barHeight}" fill="#3b82f6" rx="4" />
-      
-      <text x="0" y="80" font-size="12" fill="#333">Audits Received: ${auditsReceived}</text>
-      <rect x="0" y="85" width="${receivedWidth}" height="${barHeight}" fill="#10b981" rx="4" />
-    </svg>`;
-}
-
-function generateXPTimeline(transactions) {
-  if (!transactions || transactions.length === 0) {
-    return '<div style="text-align: center; padding: 20px; color: #666;">No XP timeline data available</div>';
+function getPassFailRatio(progressList) {
+  if (!progressList || !Array.isArray(progressList)) {
+    return { pass: 0, fail: 0 };
   }
-
-  let cumulativeXP = 0;
-  const timelineData = transactions.map(tx => {
-    cumulativeXP += tx.amount;
-    return {
-      date: new Date(tx.createdAt),
-      xp: cumulativeXP
-    };
+  
+  let pass = 0, fail = 0;
+  progressList.forEach(item => {
+    if (item.grade >= 100) {
+      pass++;
+    } else {
+      fail++;
+    }
   });
-
-  const width = 800;
-  const height = 300;
-  const padding = 40;
-  
-  const minDate = timelineData[0].date;
-  const maxDate = timelineData[timelineData.length - 1].date;
-  const maxXP = Math.max(...timelineData.map(d => d.xp));
-  
-  const dateRange = maxDate.getTime() - minDate.getTime();
-  
-  const points = timelineData.map(d => {
-    const x = padding + ((d.date.getTime() - minDate.getTime()) / dateRange) * (width - 2 * padding);
-    const y = height - padding - (d.xp / maxXP) * (height - 2 * padding);
-    return `${x},${y}`;
-  }).join(' ');
-  
-  return `
-    <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}">
-      <defs>
-        <linearGradient id="xpGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.3" />
-          <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0.1" />
-        </linearGradient>
-      </defs>
-      
-      <!-- Grid lines -->
-      <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" stroke="#e5e7eb" stroke-width="1"/>
-      <line x1="${padding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}" stroke="#e5e7eb" stroke-width="1"/>
-      
-      <!-- XP line -->
-      <polyline points="${points}" fill="none" stroke="#3b82f6" stroke-width="2"/>
-      
-      <!-- Labels -->
-      <text x="${padding}" y="${height - 10}" font-size="10" fill="#666">${minDate.toLocaleDateString()}</text>
-      <text x="${width - padding - 60}" y="${height - 10}" font-size="10" fill="#666">${maxDate.toLocaleDateString()}</text>
-      <text x="10" y="${padding}" font-size="10" fill="#666">${maxXP.toLocaleString()}</text>
-      <text x="10" y="${height - padding}" font-size="10" fill="#666">0</text>
-    </svg>`;
+  return { pass, fail };
 }
 
-function displayCompletedProjects(projects) {
-  if (!projects || projects.length === 0) {
-    document.getElementById("projects-section").innerHTML = 
-      '<div style="text-align: center; padding: 20px; color: #666;">No completed projects found</div>';
-    return;
+function generatePieChart({pass, fail}) {
+  const total = pass + fail;
+  
+  if (total === 0) {
+    return '<div style="text-align: center; padding: 20px; color: #666;">No progress data available</div>';
   }
-
-  const projectsHTML = projects.map(project => {
-    const completedDate = new Date(project.updatedAt).toLocaleDateString();
-    const grade = project.grade || 0;
-    const gradeColor = grade >= 100 ? '#059669' : '#dc2626';
-    
-    return `
-      <div class="project-item">
-        <div>
-          <div class="project-name">${project.object?.name || 'Unknown Project'}</div>
-          <div style="font-size: 0.875rem; color: #6b7280;">Completed: ${completedDate}</div>
+  
+  const passPercentage = ((pass / total) * 100).toFixed(1);
+  const failPercentage = ((fail / total) * 100).toFixed(1);
+  
+  // Simple pie chart using CSS conic-gradient
+  return `
+    <div style="display: flex; align-items: center; justify-content: center; gap: 20px;">
+      <div style="
+        width: 120px; 
+        height: 120px; 
+        border-radius: 50%; 
+        background: conic-gradient(#34d399 0deg ${(pass/total)*360}deg, #f87171 ${(pass/total)*360}deg 360deg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      ">
+        <div style="
+          width: 60px;
+          height: 60px;
+          background: white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: bold;
+          font-size: 12px;
+        ">${total}</div>
+      </div>
+      <div>
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+          <div style="width: 12px; height: 12px; background: #34d399; margin-right: 8px; border-radius: 2px;"></div>
+          <span>Pass: ${pass} (${passPercentage}%)</span>
         </div>
-        <div style="color: ${gradeColor}; font-weight: 600;">${grade}%</div>
-      </div>`;
-  }).join('');
-
-  document.getElementById("projects-section").innerHTML = projectsHTML;
+        <div style="display: flex; align-items: center;">
+          <div style="width: 12px; height: 12px; background: #f87171; margin-right: 8px; border-radius: 2px;"></div>
+          <span>Fail: ${fail} (${failPercentage}%)</span>
+        </div>
+      </div>
+    </div>`;
 }
 
 async function handleLogin() {
@@ -620,32 +410,30 @@ async function handleLogin() {
     const jwt = await login(username, password);
     console.log("Login successful, JWT received");
 
-    const userData = await fetchUserData(jwt);
+    // Fetch user data and XP data
+    const userData = await fetchUserAndXPData(jwt);
     console.log("User data fetched:", userData);
     
-    // Display user info - Fixed to use user object directly
-    const displayName = userData.user?.login || 
-                       userData.user?.firstName || 
+    // Display user info
+    const displayName = userData.userInfo?.[0]?.login || 
+                       userData.userInfo?.[0]?.firstName || 
                        username;
     document.getElementById("user-login").textContent = displayName;
 
-    // Display user information
-    displayUserInfo(userData);
-
-    // Generate XP chart - Fixed to use transaction array directly
-    const xpProjects = groupXPByProject(userData.transaction);
+    // Generate XP chart
+    const xpProjects = groupXPByProject(userData.xpTransactions);
     document.getElementById("xp-section").innerHTML = generateSVGBarChart(xpProjects);
 
-    // Generate audit chart
-    const auditsDone = userData.auditsDone?.aggregate?.count || 0;
-    const auditsReceived = userData.auditsReceived?.aggregate?.count || 0;
-    document.getElementById("audit-section").innerHTML = generateAuditChart(auditsDone, auditsReceived);
-
-    // Generate XP timeline - Fixed to use transaction array directly
-    document.getElementById("timeline-section").innerHTML = generateXPTimeline(userData.transaction);
-
-    // Display completed projects - Fixed to use progress array directly
-    displayCompletedProjects(userData.progress);
+    // Fetch and generate pass/fail chart
+    try {
+      const pfData = await fetchPassFailData(jwt);
+      const ratio = getPassFailRatio(pfData);
+      document.getElementById("graph-section").innerHTML = generatePieChart(ratio);
+    } catch (pfError) {
+      console.warn("Could not fetch pass/fail data:", pfError);
+      document.getElementById("graph-section").innerHTML = 
+        '<div style="text-align: center; padding: 20px; color: #666;">Pass/Fail data not available</div>';
+    }
 
     // Show profile, hide login
     document.getElementById("login-container").style.display = "none";
@@ -666,7 +454,6 @@ function logout() {
   document.getElementById("username").value = "";
   document.getElementById("password").value = "";
   document.getElementById("error-msg").textContent = "";
-  document.getElementById("debug-info").style.display = "none";
 }
 
 // Event listeners
