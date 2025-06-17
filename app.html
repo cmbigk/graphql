@@ -38,30 +38,19 @@ body {
   width: 100%;
   padding: 12px;
   font-size: 1rem;
-  color: #0ea209;
-  background: #70f63b;
+  color: #fff;
+  background: #3b82f6;
   border: none;
   border-radius: 4px;
   cursor: pointer;
 }
 .login-box button:hover {
-  background: #25eb3c;
+  background: #2563eb;
 }
 .error {
   color: #b91c1c;
   margin-top: 8px;
   text-align: center;
-}
-.debug {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  padding: 8px;
-  margin-top: 8px;
-  font-family: monospace;
-  font-size: 12px;
-  max-height: 100px;
-  overflow-y: auto;
 }
 
 .profile {
@@ -130,7 +119,6 @@ body {
   <input id="password" type="password" placeholder="Password" />
   <button id="login-btn">Login & View Profile</button>
   <div id="error-msg" class="error"></div>
-  <div id="debug-info" class="debug" style="display:none;"></div>
 </div>
 
 <div id="profile-container" class="profile" style="display:none;">
@@ -158,85 +146,27 @@ body {
 const GRAPHQL_ENDPOINT = "https://01.gritlab.ax/api/graphql-engine/v1/graphql";
 const AUTH_ENDPOINT = "https://01.gritlab.ax/api/auth/signin";
 
-function showDebugInfo(info) {
-  const debugDiv = document.getElementById("debug-info");
-  debugDiv.textContent = typeof info === 'object' ? JSON.stringify(info, null, 2) : info;
-  debugDiv.style.display = "block";
-}
-
 async function login(username, password) {
-  try {
-    const res = await fetch(AUTH_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Basic " + btoa(`${username}:${password}`)
-      }
-    });
-
-    console.log("Auth response status:", res.status);
-    console.log("Auth response headers:", Object.fromEntries(res.headers.entries()));
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.log("Auth error response:", errorText);
-      throw new Error(`Authentication failed: ${res.status} ${res.statusText}`);
+  const res = await fetch(AUTH_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Basic " + btoa(`${username}:${password}`)
     }
+  });
 
-    const data = await res.json();
-    console.log("Full auth response:", data);
-    showDebugInfo(`Auth response: ${JSON.stringify(data, null, 2)}`);
-    
-    // Check for various token field names that might be used
-    const possibleTokens = [
-      data.token,
-      data.jwt, 
-      data.access_token,
-      data.accessToken,
-      data.authToken,
-      data.bearer_token,
-      data.bearerToken
-    ];
-
-    let token = possibleTokens.find(t => t && typeof t === 'string');
-
-    // Fix: Remove extra quotes if present (e.g., "\"eyJhbGciOi...\"" => "eyJhbGciOi...")
-    if (token && token.startsWith('"') && token.endsWith('"')) {
-      token = token.slice(1, -1);
-    }
-    if (token) token = token.trim();
-
-    if (!token) {
-      console.log("Available fields in response:", Object.keys(data));
-      throw new Error(`No token found in response. Available fields: ${Object.keys(data).join(', ')}`);
-    }
-
-    console.log("Token found:", token.substring(0, 50) + "...");
-
-    // Validate JWT format (should have 3 parts separated by dots)
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      console.log("Token parts:", parts.length);
-      console.log("Token preview:", token.substring(0, 50) + "...");
-      throw new Error(`Invalid JWT format: expected 3 parts, got ${parts.length}`);
-    }
-
-    // Try to decode the header to verify it's a valid JWT
-    try {
-      const header = JSON.parse(atob(parts[0].replace(/-/g, '+').replace(/_/g, '/')));
-      console.log("JWT header:", header);
-    } catch (decodeErr) {
-      console.log("Failed to decode JWT header:", decodeErr);
-      throw new Error("Token is not a valid JWT");
-    }
-    
-    return token;
-    
-  } catch (error) {
-    console.error("Login error details:", error);
-    showDebugInfo(`Login error: ${error.message}`);
-    throw error;
+  if (!res.ok) {
+    throw new Error(`Authentication failed: ${res.status} ${res.statusText}`);
   }
+
+  const data = await res.json();
+  console.log("Auth response:", data);
+  
+  if (!data.token && !data.jwt) {
+    throw new Error("No token received from authentication");
+  }
+  
+  return data.token || data.jwt;
 }
 
 async function fetchUserAndXPData(jwt) {
@@ -284,8 +214,6 @@ async function fetchUserAndXPData(jwt) {
     }
   }`;
 
-  console.log("Making GraphQL request with JWT:", jwt.substring(0, 20) + "...");
-
   const res = await fetch(GRAPHQL_ENDPOINT, {
     method: "POST",
     headers: {
@@ -295,20 +223,14 @@ async function fetchUserAndXPData(jwt) {
     body: JSON.stringify({query})
   });
 
-  console.log("GraphQL response status:", res.status);
-  console.log("GraphQL response headers:", Object.fromEntries(res.headers.entries()));
-
   if (!res.ok) {
-    const errorText = await res.text();
-    console.log("GraphQL error response:", errorText);
-    throw new Error(`GraphQL request failed: ${res.status} ${res.statusText} - ${errorText}`);
+    throw new Error(`GraphQL request failed: ${res.status} ${res.statusText}`);
   }
 
   const result = await res.json();
   console.log("GraphQL response:", result);
   
   if (result.errors) {
-    console.log("GraphQL errors:", result.errors);
     throw new Error(`GraphQL errors: ${result.errors.map(e => e.message).join(', ')}`);
   }
 
@@ -333,8 +255,6 @@ async function fetchPassFailData(jwt) {
   });
 
   if (!res.ok) {
-    const errorText = await res.text();
-    console.log("Pass/Fail GraphQL error:", errorText);
     throw new Error(`GraphQL request failed: ${res.status} ${res.statusText}`);
   }
 
@@ -363,7 +283,7 @@ function groupXPByProject(transactions) {
   return Object.entries(grouped)
     .map(([name, xp]) => ({ name, xp }))
     .sort((a,b) => b.xp - a.xp)
-    .slice(0, 10);
+    .slice(0, 10); // Show top 10 projects
 }
 
 function generateSVGBarChart(projects) {
@@ -379,6 +299,7 @@ function generateSVGBarChart(projects) {
     const x = i * (barW + gap);
     const y = chtH - h;
     
+    // Truncate long project names
     const displayName = p.name.length > 8 ? p.name.substring(0, 8) + '...' : p.name;
     
     return `
@@ -419,6 +340,7 @@ function generatePieChart({pass, fail}) {
   const passPercentage = ((pass / total) * 100).toFixed(1);
   const failPercentage = ((fail / total) * 100).toFixed(1);
   
+  // Simple pie chart using CSS conic-gradient
   return `
     <div style="display: flex; align-items: center; justify-content: center; gap: 20px;">
       <div style="
@@ -461,10 +383,8 @@ async function handleLogin() {
   const password = document.getElementById("password").value;
   const errorMsg = document.getElementById("error-msg");
   const loginBtn = document.getElementById("login-btn");
-  const debugDiv = document.getElementById("debug-info");
   
   errorMsg.textContent = "";
-  debugDiv.style.display = "none";
 
   if (!username || !password) {
     errorMsg.textContent = "Please enter both username and password";
@@ -479,17 +399,21 @@ async function handleLogin() {
     const jwt = await login(username, password);
     console.log("Login successful, JWT received");
 
+    // Fetch user data and XP data
     const userData = await fetchUserAndXPData(jwt);
     console.log("User data fetched:", userData);
     
+    // Display user info
     const displayName = userData.userInfo?.[0]?.login || 
                        userData.userInfo?.[0]?.firstName || 
                        username;
     document.getElementById("user-login").textContent = displayName;
 
+    // Generate XP chart
     const xpProjects = groupXPByProject(userData.xpTransactions);
     document.getElementById("xp-section").innerHTML = generateSVGBarChart(xpProjects);
 
+    // Fetch and generate pass/fail chart
     try {
       const pfData = await fetchPassFailData(jwt);
       const ratio = getPassFailRatio(pfData);
@@ -500,6 +424,7 @@ async function handleLogin() {
         '<div style="text-align: center; padding: 20px; color: #666;">Pass/Fail data not available</div>';
     }
 
+    // Show profile, hide login
     document.getElementById("login-container").style.display = "none";
     document.getElementById("profile-container").style.display = "block";
     
@@ -518,12 +443,13 @@ function logout() {
   document.getElementById("username").value = "";
   document.getElementById("password").value = "";
   document.getElementById("error-msg").textContent = "";
-  document.getElementById("debug-info").style.display = "none";
 }
 
+// Event listeners
 document.getElementById("login-btn").addEventListener("click", handleLogin);
 document.getElementById("logout-btn").addEventListener("click", logout);
 
+// Allow Enter key to trigger login
 document.getElementById("username").addEventListener("keypress", function(e) {
   if (e.key === "Enter") handleLogin();
 });
