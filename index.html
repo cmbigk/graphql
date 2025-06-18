@@ -393,20 +393,26 @@ function groupXPByExercise(transactions) {
     return [];
   }
   
-  const grouped = {};
+  // Group exercises by name and keep the maximum XP for each
+  const exerciseMap = {};
+  
   transactions.forEach(tx => {
     if (tx.object?.type === "exercise") {
       const name = tx.object?.name || "Unknown Exercise";
-      grouped[name] = (grouped[name] || 0) + tx.amount;
+      
+      // Keep the highest XP amount for this exercise
+      if (!exerciseMap[name] || tx.amount > exerciseMap[name]) {
+        exerciseMap[name] = tx.amount;
+      }
     }
   });
   
-  return Object.entries(grouped)
+  // Convert to array and sort by XP
+  return Object.entries(exerciseMap)
     .map(([name, xp]) => ({ name, xp }))
-    .sort((a,b) => b.xp - a.xp)
+    .sort((a, b) => b.xp - a.xp)
     .slice(0, 10);
 }
-
 function generateSVGBarChart(items, color = "#10b981") {
   if (!items || items.length === 0) {
     return '<div style="text-align: center; padding: 20px; color: #666;">No data available</div>';
