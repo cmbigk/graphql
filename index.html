@@ -241,8 +241,8 @@ body {
       </div>
     </div>
     <div class="chart-box">
-      <h3>XP in Checkpoints</h3>
-      <div id="xp-checkpoint-section" class="chart">
+      <h3>XP per Exercise</h3>
+      <div id="xp-exercise-section" class="chart">
         <div class="loading">Loading...</div>
       </div>
     </div>
@@ -305,7 +305,8 @@ async function fetchUserAndXPData(jwt) {
         type: {_eq: "xp"}, 
         _and: [
           {object: {type: {_neq: "piscine"}}}, 
-          {path: {_nlike: "%piscine-js/%"}}
+          {path: {_nlike: "%piscine-js/%"}}, 
+          {path: {_nlike: "%checkpoint%"}}
         ]
       }
       order_by: {createdAt: asc}
@@ -375,7 +376,7 @@ function groupXPByProject(transactions) {
   
   const grouped = {};
   transactions.forEach(tx => {
-    if (tx.object?.type === "project" && !tx.path?.includes("checkpoint")) {
+    if (tx.object?.type === "project") {
       const name = tx.object?.name || "Unknown Project";
       grouped[name] = (grouped[name] || 0) + tx.amount;
     }
@@ -387,7 +388,7 @@ function groupXPByProject(transactions) {
     .slice(0, 10);
 }
 
-function groupXPByCheckpoint(transactions) {
+function groupXPByExercise(transactions) {
   if (!transactions || !Array.isArray(transactions)) {
     console.warn("No transactions data available");
     return [];
@@ -395,8 +396,8 @@ function groupXPByCheckpoint(transactions) {
   
   const grouped = {};
   transactions.forEach(tx => {
-    if (tx.path?.includes("checkpoint") || tx.object?.name?.toLowerCase().includes("checkpoint")) {
-      const name = tx.object?.name || tx.path?.split('/').pop() || "Unknown Checkpoint";
+    if (tx.object?.type === "exercise") {
+      const name = tx.object?.name || "Unknown Exercise";
       grouped[name] = (grouped[name] || 0) + tx.amount;
     }
   });
@@ -473,9 +474,9 @@ async function handleLogin() {
     document.getElementById("xp-project-section").innerHTML = 
       generateSVGBarChart(xpProjects, "#3b82f6");
 
-    const xpCheckpoints = groupXPByCheckpoint(userData.xpTransactions);
-    document.getElementById("xp-checkpoint-section").innerHTML = 
-      generateSVGBarChart(xpCheckpoints, "#f59e0b");
+    const xpExercises = groupXPByExercise(userData.xpTransactions);
+    document.getElementById("xp-exercise-section").innerHTML = 
+      generateSVGBarChart(xpExercises, "#10b981");
 
     // Show profile, hide login
     document.getElementById("login-container").style.display = "none";
