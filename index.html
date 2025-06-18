@@ -305,8 +305,7 @@ async function fetchUserAndXPData(jwt) {
         type: {_eq: "xp"}, 
         _and: [
           {object: {type: {_neq: "piscine"}}}, 
-          {path: {_nlike: "%piscine-js/%"}}, 
-          {path: {_nlike: "%checkpoint%"}}
+          {path: {_nlike: "%piscine-js/%"}}
         ]
       }
       order_by: {createdAt: asc}
@@ -396,9 +395,9 @@ function groupXPByExercise(transactions) {
   
   const grouped = {};
   transactions.forEach(tx => {
-    if (tx.object?.type === "exam" || tx.object?.type === "exercise") {
+    if (tx.object?.type === "exercise") {
       const name = tx.object?.name || "Unknown Exercise";
-      grouped[name] = (grouped[name]||0) + tx.amount;
+      grouped[name] = (grouped[name] || 0) + tx.amount;
     }
   });
   
