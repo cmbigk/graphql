@@ -393,16 +393,11 @@ function groupXPProgressOverTime(transactions) {
     return [];
   }
 
-  // Filter transactions from August 2024 onwards
-  const filteredTransactions = transactions.filter(tx => {
-    const date = new Date(tx.createdAt);
-    return date >= new Date('2024-08-01');
-  });
-
-  // Group XP by month starting from August 2024
+  // Group XP by month
   const monthlyXP = {};
+  let cumulativeXP = 0;
   
-  filteredTransactions.forEach(tx => {
+  transactions.forEach(tx => {
     const date = new Date(tx.createdAt);
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     
@@ -412,30 +407,17 @@ function groupXPProgressOverTime(transactions) {
     monthlyXP[monthKey] += tx.amount;
   });
 
-  // Generate all months from August 2024 to current month
-  const startDate = new Date('2024-08-01');
-  const currentDate = new Date();
-  const allMonths = [];
-  
-  let currentMonth = new Date(startDate);
-  while (currentMonth <= currentDate) {
-    const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
-    allMonths.push(monthKey);
-    currentMonth.setMonth(currentMonth.getMonth() + 1);
-  }
-
-  // Convert to array with cumulative XP starting from 0
-  let cumulativeXP = 0;
-  const progressData = allMonths.map(month => {
-    const monthlyAmount = monthlyXP[month] || 0;
-    cumulativeXP += monthlyAmount;
-    
-    return {
-      month,
-      monthlyXP: monthlyAmount,
-      cumulativeXP
-    };
-  });
+  // Convert to array with cumulative XP and sort by date
+  const progressData = Object.entries(monthlyXP)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, xp]) => {
+      cumulativeXP += xp;
+      return {
+        month,
+        monthlyXP: xp,
+        cumulativeXP
+      };
+    });
 
   return progressData;
 }
