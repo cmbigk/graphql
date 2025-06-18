@@ -305,7 +305,8 @@ async function fetchUserAndXPData(jwt) {
         type: {_eq: "xp"}, 
         _and: [
           {object: {type: {_neq: "piscine"}}}, 
-          {path: {_nlike: "%piscine-js/%"}}
+          {path: {_nlike: "%piscine-js/%"}}, 
+          {path: {_nlike: "%checkpoint%"}}
         ]
       }
       order_by: {createdAt: asc}
@@ -320,6 +321,52 @@ async function fetchUserAndXPData(jwt) {
     }
 
     xpSum: transaction_aggregate(where: { type: { _eq: "xp" } }) {
+      aggregate { 
+        sum { 
+          amount 
+        } 
+      }
+    }
+
+    xpSchool: transaction_aggregate(
+      where: { 
+        _and: [ 
+          { type: { _eq: "xp" } }, 
+          { path: { _nlike: "%piscine-go/%" } }, 
+          { path: { _nlike: "%piscine-js/%" } } 
+        ] 
+      }
+    ) {
+      aggregate { 
+        sum { 
+          amount 
+        } 
+      }
+    }
+
+    xpPiscineGo: transaction_aggregate(
+      where: { 
+        _and: [ 
+          { type: { _eq: "xp" } }, 
+          { path: { _like: "%piscine-go/%" } } 
+        ] 
+      }
+    ) {
+      aggregate { 
+        sum { 
+          amount 
+        } 
+      }
+    }
+
+    xpPiscineJs: transaction_aggregate(
+      where: { 
+        _and: [ 
+          { type: { _eq: "xp" } }, 
+          { path: { _like: "%piscine-js/%" } } 
+        ] 
+      }
+    ) {
       aggregate { 
         sum { 
           amount 
