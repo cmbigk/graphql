@@ -396,9 +396,9 @@ function groupXPByExercise(transactions) {
   
   const grouped = {};
   transactions.forEach(tx => {
-    if (tx.object?.type === "exercise-xp-graph") {
+    if (tx.object?.type === "exercise") {
       const name = tx.object?.name || "Unknown Exercise";
-      grouped[name] = (grouped[name] || 0) + tx.amount;
+      grouped[name] = (grouped[name]) + tx.amount;
     }
   });
   
