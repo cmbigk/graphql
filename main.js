@@ -209,71 +209,70 @@ function generateAuditRatioChart(auditData, color = "#8b5cf6") {
   // Chart dimensions
   const chartWidth = 400;
   const barHeight = 30;
-  const barSpacing = 20;
-  const padding = 40;
   const labelWidth = 80;
   
   // Calculate bar widths (proportional to values)
-  const doneWidth = (done / maxValue) * (chartWidth - labelWidth - padding * 2);
-  const receivedWidth = (received / maxValue) * (chartWidth - labelWidth - padding * 2);
+  const doneWidth = (done / maxValue) * (chartWidth - labelWidth - 40);
+  const receivedWidth = (received / maxValue) * (chartWidth - labelWidth - 40);
   
-  // Determine ratio status and color
-  let ratioStatus = "";
-  let ratioColor = "#666";
+  // Determine ratio status class
+  let statusClass = "";
   
   if (ratio >= 1.5) {
-    ratioStatus = "Excellent!";
-    ratioColor = "#10b981"; // green
+    statusClass = "excellent";
   } else if (ratio >= 1.2) {
-    ratioStatus = "Almost perfect!";
-    ratioColor = "#3b82f6"; // blue
+    statusClass = "almost-perfect";
   } else if (ratio >= 1.0) {
-    ratioStatus = "Good";
-    ratioColor = "#f59e0b"; // yellow
+    statusClass = "good";
   } else {
-    ratioStatus = "Needs improvement";
-    ratioColor = "#ef4444"; // red
+    statusClass = "needs-improvement";
   }
 
+  const statusText = {
+    "excellent": "Excellent!",
+    "almost-perfect": "Almost perfect!",
+    "good": "Good",
+    "needs-improvement": "Needs improvement"
+  }[statusClass];
+
   return `
-    <div style="padding: 20px; font-family: Arial, sans-serif;">
-      <div style="margin-bottom: 30px;">
-        <h4 style="margin: 0 0 20px 0; color: #333; text-align: center;">[ Audit Ratio ]</h4>
+    <div class="audit-chart-container">
+      <div class="audit-chart-content">
+        <h4 class="audit-chart-title">[ Audit Ratio ]</h4>
         
         <svg width="100%" height="120" viewBox="0 0 ${chartWidth} 120">
           <!-- Done bar -->
-          <text x="10" y="25" font-size="14" fill="#333" font-weight="bold">Done</text>
+          <text x="10" y="25" class="audit-bar-label">Done</text>
           <rect x="${labelWidth}" y="10" width="${doneWidth}" height="${barHeight}" 
-                fill="#10b981" rx="4" opacity="0.8"/>
-          <text x="${labelWidth + doneWidth + 10}" y="29" font-size="12" fill="#333">
+                class="audit-done-bar"/>
+          <text x="${labelWidth + doneWidth + 10}" y="29" class="audit-bar-value">
             ${doneFormatted}
           </text>
           
           <!-- Received bar -->
-          <text x="10" y="70" font-size="14" fill="#333" font-weight="bold">Received</text>
+          <text x="10" y="70" class="audit-bar-label">Received</text>
           <rect x="${labelWidth}" y="55" width="${receivedWidth}" height="${barHeight}" 
-                fill="#3b82f6" rx="4" opacity="0.8"/>
-          <text x="${labelWidth + receivedWidth + 10}" y="74" font-size="12" fill="#333">
+                class="audit-received-bar"/>
+          <text x="${labelWidth + receivedWidth + 10}" y="74" class="audit-bar-value">
             ${receivedFormatted}
           </text>
           
           <!-- Arrow indicators -->
           <polygon points="${labelWidth + doneWidth - 5},15 ${labelWidth + doneWidth + 5},25 ${labelWidth + doneWidth - 5},35" 
-                   fill="#10b981"/>
+                   class="audit-done-arrow"/>
           <polygon points="${labelWidth + receivedWidth - 5},60 ${labelWidth + receivedWidth + 5},70 ${labelWidth + receivedWidth - 5},80" 
-                   fill="#3b82f6"/>
+                   class="audit-received-arrow"/>
         </svg>
         
-        <div style="margin-top: 20px; text-align: center; padding: 15px; 
-                    background: #f8f9fa; border-radius: 8px; border-left: 4px solid ${ratioColor};">
-          <div style="font-size: 16px; margin-bottom: 5px;">
+        <div class="audit-ratio-summary ${statusClass}">
+          <div class="audit-ratio-text">
             <strong>Ratio: </strong>
-            <span style="color: ${ratioColor}; font-weight: bold; font-size: 18px;">
+            <span class="audit-ratio-value ${statusClass}">
               ${ratio.toFixed(2)}
             </span>
           </div>
-          <div style="color: ${ratioColor}; font-weight: bold;">
-            ${ratioStatus}
+          <div class="audit-ratio-status ${statusClass}">
+            ${statusText}
           </div>
         </div>
       </div>

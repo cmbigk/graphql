@@ -151,6 +151,118 @@ body {
   color: #666;
 }
 
+/* Audit Ratio Chart Styles */
+.audit-chart-container {
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+.audit-chart-content {
+  margin-bottom: 30px;
+}
+
+.audit-chart-title {
+  margin: 0 0 20px 0;
+  color: #333;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.audit-bar-label {
+  font-size: 14px;
+  fill: #333;
+  font-weight: bold;
+}
+
+.audit-bar-value {
+  font-size: 12px;
+  fill: #333;
+}
+
+.audit-done-bar {
+  fill: #10b981;
+  opacity: 0.8;
+  rx: 4;
+}
+
+.audit-received-bar {
+  fill: #3b82f6;
+  opacity: 0.8;
+  rx: 4;
+}
+
+
+.audit-ratio-summary {
+  margin-top: 20px;
+  text-align: center;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.audit-ratio-summary.excellent {
+  border-left: 4px solid #10b981;
+}
+
+.audit-ratio-summary.almost-perfect {
+  border-left: 4px solid #3b82f6;
+}
+
+.audit-ratio-summary.good {
+  border-left: 4px solid #f59e0b;
+}
+
+.audit-ratio-summary.needs-improvement {
+  border-left: 4px solid #ef4444;
+}
+
+.audit-ratio-text {
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+.audit-ratio-value {
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.audit-ratio-value.excellent {
+  color: #10b981;
+}
+
+.audit-ratio-value.almost-perfect {
+  color: #3b82f6;
+}
+
+.audit-ratio-value.good {
+  color: #f59e0b;
+}
+
+.audit-ratio-value.needs-improvement {
+  color: #ef4444;
+}
+
+.audit-ratio-status {
+  font-weight: bold;
+}
+
+.audit-ratio-status.excellent {
+  color: #10b981;
+}
+
+.audit-ratio-status.almost-perfect {
+  color: #3b82f6;
+}
+
+.audit-ratio-status.good {
+  color: #f59e0b;
+}
+
+.audit-ratio-status.needs-improvement {
+  color: #ef4444;
+}
+
 @media (max-width: 768px) {
   .info-section {
     grid-template-columns: 1fr;
