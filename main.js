@@ -311,13 +311,13 @@ function logout() {
   document.getElementById("error-msg").textContent = "";
 }
 
-// // Event listeners
-// document.getElementById("login-btn").addEventListener("click", handleLogin);
-// document.getElementById("logout-btn").addEventListener("click", logout);
+// Event listeners
+document.getElementById("login-btn").addEventListener("click", handleLogin);
+document.getElementById("logout-btn").addEventListener("click", logout);
 
-// document.getElementById("username").addEventListener("keypress", function(e) {
-//   if (e.key === "Enter") handleLogin();
-// });
-// document.getElementById("password").addEventListener("keypress", function(e) {
-//   if (e.key === "Enter") handleLogin();
-// });
+document.getElementById("username").addEventListener("keypress", function(e) {
+  if (e.key === "Enter") handleLogin();
+});
+document.getElementById("password").addEventListener("keypress", function(e) {
+  if (e.key === "Enter") handleLogin();
+});
