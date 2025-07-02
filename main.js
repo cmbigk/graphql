@@ -103,6 +103,11 @@ function populateUserInfo(userInfo, totalXP) {
   const user = userInfo?.[0];
   if (!user) return;
 
+  // Calculate total done (including bonus) to match chart calculation
+  const totalUp = user.totalUp || 0;
+  const totalUpBonus = user.totalUpBonus || 0;
+  const totalDone = totalUp + totalUpBonus;
+
   document.getElementById("user-campus").textContent = user.campus || "-";
   document.getElementById("user-id").textContent = user.id || "-";
   document.getElementById("user-firstname").textContent = user.firstName || "-";
@@ -110,7 +115,7 @@ function populateUserInfo(userInfo, totalXP) {
   document.getElementById("user-email").textContent = user.email || "-";
   document.getElementById("user-totalxp").textContent = totalXP ? `${totalXP.toLocaleString()} XP` : "-";
   document.getElementById("user-auditratio").textContent = user.auditRatio ? user.auditRatio.toFixed(2) : "-";
-  document.getElementById("user-totalup").textContent = user.totalUp ? `${user.totalUp.toLocaleString()} bytes` : "-";
+  document.getElementById("user-totalup").textContent = totalDone ? `${totalDone.toLocaleString()} bytes` : "-";
   document.getElementById("user-bonus").textContent = user.totalUpBonus ? `${user.totalUpBonus.toLocaleString()} bytes` : "-";
   document.getElementById("user-totaldown").textContent = user.totalDown ? `${user.totalDown.toLocaleString()} bytes` : "-";
 }
@@ -256,12 +261,6 @@ function generateAuditRatioChart(auditData, color = "#8b5cf6") {
           <text x="${labelWidth + receivedWidth + 10}" y="74" class="audit-bar-value">
             ${receivedFormatted}
           </text>
-          
-          <!-- Arrow indicators -->
-          <polygon points="${labelWidth + doneWidth - 5},15 ${labelWidth + doneWidth + 5},25 ${labelWidth + doneWidth - 5},35" 
-                   class="audit-done-arrow"/>
-          <polygon points="${labelWidth + receivedWidth - 5},60 ${labelWidth + receivedWidth + 5},70 ${labelWidth + receivedWidth - 5},80" 
-                   class="audit-received-arrow"/>
         </svg>
         
         <div class="audit-ratio-summary ${statusClass}">
