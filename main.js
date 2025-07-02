@@ -135,39 +135,38 @@ function groupXPByProject(transactions) {
     .slice(0, 10);
 }
 
-function groupXPProgressOverTime(transactions) {
-  if (!transactions || !Array.isArray(transactions)) {
-    console.warn("No transactions data available");
-    return [];
+function generateAuditRatioData(userInfo) {
+  if (!userInfo || !Array.isArray(userInfo) || userInfo.length === 0) {
+    console.warn("No user data available for audit ratio");
+    return null;
   }
 
-  // Group XP by month
-  const monthlyXP = {};
-  let cumulativeXP = 0;
+  const user = userInfo[0];
+  const totalUp = user.totalUp || 0;
+  const totalUpBonus = user.totalUpBonus || 0;
+  const totalDown = user.totalDown || 0;
+  const auditRatio = user.auditRatio || 0;
+
+  // Calculate total done (including bonus)
+  const totalDone = totalUp + totalUpBonus;
   
-  transactions.forEach(tx => {
-    const date = new Date(tx.createdAt);
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    
-    if (!monthlyXP[monthKey]) {
-      monthlyXP[monthKey] = 0;
-    }
-    monthlyXP[monthKey] += tx.amount;
-  });
+  return {
+    done: totalDone,
+    received: totalDown,
+    ratio: auditRatio,
+    doneFormatted: formatBytes(totalDone),
+    receivedFormatted: formatBytes(totalDown)
+  };
+}
 
-  // Convert to array with cumulative XP and sort by date
-  const progressData = Object.entries(monthlyXP)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, xp]) => {
-      cumulativeXP += xp;
-      return {
-        month,
-        monthlyXP: xp,
-        cumulativeXP
-      };
-    });
-
-  return progressData;
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 B';
+  
+  const k = 1024;
+  const sizes = ['B', 'kB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 function generateSVGBarChart(items, color = "#10b981") {
@@ -197,53 +196,88 @@ function generateSVGBarChart(items, color = "#10b981") {
   return `<svg width="100%" height="300" viewBox="0 0 ${width} 300">${bars}</svg>`;
 }
 
-function generateSVGLineChart(progressData, color = "#8b5cf6") {
-  if (!progressData || progressData.length === 0) {
-    return '<div style="text-align: center; padding: 20px; color: #666;">No progress data available</div>';
+function generateAuditRatioChart(auditData, color = "#8b5cf6") {
+  if (!auditData) {
+    return '<div style="text-align: center; padding: 20px; color: #666;">No audit data available</div>';
   }
 
-  const chartWidth = Math.max(progressData.length * 80, 500);
-  const chartHeight = 250;
+  const { done, received, ratio, doneFormatted, receivedFormatted } = auditData;
+  
+  // Calculate the maximum value for scaling
+  const maxValue = Math.max(done, received, 1);
+  
+  // Chart dimensions
+  const chartWidth = 400;
+  const barHeight = 30;
+  const barSpacing = 20;
   const padding = 40;
+  const labelWidth = 80;
   
-  const maxXP = Math.max(...progressData.map(d => d.cumulativeXP), 1);
+  // Calculate bar widths (proportional to values)
+  const doneWidth = (done / maxValue) * (chartWidth - labelWidth - padding * 2);
+  const receivedWidth = (received / maxValue) * (chartWidth - labelWidth - padding * 2);
   
-  // Generate points for the line
-  const points = progressData.map((d, i) => {
-    const x = padding + (i * (chartWidth - 2 * padding)) / (progressData.length - 1);
-    const y = chartHeight - padding - ((d.cumulativeXP / maxXP) * (chartHeight - 2 * padding));
-    return { x, y, data: d };
-  });
+  // Determine ratio status and color
+  let ratioStatus = "";
+  let ratioColor = "#666";
   
-  // Create the line path
-  const pathData = points.map((p, i) => 
-    i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`
-  ).join(' ');
-  
-  // Create circles and labels for each point
-  const circles = points.map(p => `
-    <circle cx="${p.x}" cy="${p.y}" r="4" fill="${color}" stroke="#fff" stroke-width="2"/>
-    <text x="${p.x}" y="${chartHeight - 10}" font-size="10" text-anchor="middle" fill="#333">${p.data.month}</text>
-    <text x="${p.x}" y="${p.y - 10}" font-size="10" text-anchor="middle" fill="#333">${(p.data.cumulativeXP / 1000).toFixed(0)}k</text>
-  `).join('');
-  
-  // Grid lines
-  const gridLines = [];
-  for (let i = 0; i <= 5; i++) {
-    const y = padding + (i * (chartHeight - 2 * padding)) / 5;
-    const value = ((5 - i) * maxXP / 5 / 1000).toFixed(0);
-    gridLines.push(`
-      <line x1="${padding}" y1="${y}" x2="${chartWidth - padding}" y2="${y}" stroke="#e5e7eb" stroke-width="1"/>
-      <text x="${padding - 5}" y="${y + 3}" font-size="9" text-anchor="end" fill="#666">${value}k</text>
-    `);
+  if (ratio >= 1.5) {
+    ratioStatus = "Excellent!";
+    ratioColor = "#10b981"; // green
+  } else if (ratio >= 1.2) {
+    ratioStatus = "Almost perfect!";
+    ratioColor = "#3b82f6"; // blue
+  } else if (ratio >= 1.0) {
+    ratioStatus = "Good";
+    ratioColor = "#f59e0b"; // yellow
+  } else {
+    ratioStatus = "Needs improvement";
+    ratioColor = "#ef4444"; // red
   }
-  
+
   return `
-    <svg width="100%" height="300" viewBox="0 0 ${chartWidth} 300">
-      ${gridLines.join('')}
-      <path d="${pathData}" fill="none" stroke="${color}" stroke-width="3"/>
-      ${circles}
-    </svg>
+    <div style="padding: 20px; font-family: Arial, sans-serif;">
+      <div style="margin-bottom: 30px;">
+        <h4 style="margin: 0 0 20px 0; color: #333; text-align: center;">[ Audit Ratio ]</h4>
+        
+        <svg width="100%" height="120" viewBox="0 0 ${chartWidth} 120">
+          <!-- Done bar -->
+          <text x="10" y="25" font-size="14" fill="#333" font-weight="bold">Done</text>
+          <rect x="${labelWidth}" y="10" width="${doneWidth}" height="${barHeight}" 
+                fill="#10b981" rx="4" opacity="0.8"/>
+          <text x="${labelWidth + doneWidth + 10}" y="29" font-size="12" fill="#333">
+            ${doneFormatted}
+          </text>
+          
+          <!-- Received bar -->
+          <text x="10" y="70" font-size="14" fill="#333" font-weight="bold">Received</text>
+          <rect x="${labelWidth}" y="55" width="${receivedWidth}" height="${barHeight}" 
+                fill="#3b82f6" rx="4" opacity="0.8"/>
+          <text x="${labelWidth + receivedWidth + 10}" y="74" font-size="12" fill="#333">
+            ${receivedFormatted}
+          </text>
+          
+          <!-- Arrow indicators -->
+          <polygon points="${labelWidth + doneWidth - 5},15 ${labelWidth + doneWidth + 5},25 ${labelWidth + doneWidth - 5},35" 
+                   fill="#10b981"/>
+          <polygon points="${labelWidth + receivedWidth - 5},60 ${labelWidth + receivedWidth + 5},70 ${labelWidth + receivedWidth - 5},80" 
+                   fill="#3b82f6"/>
+        </svg>
+        
+        <div style="margin-top: 20px; text-align: center; padding: 15px; 
+                    background: #f8f9fa; border-radius: 8px; border-left: 4px solid ${ratioColor};">
+          <div style="font-size: 16px; margin-bottom: 5px;">
+            <strong>Ratio: </strong>
+            <span style="color: ${ratioColor}; font-weight: bold; font-size: 18px;">
+              ${ratio.toFixed(2)}
+            </span>
+          </div>
+          <div style="color: ${ratioColor}; font-weight: bold;">
+            ${ratioStatus}
+          </div>
+        </div>
+      </div>
+    </div>
   `;
 }
 
@@ -286,9 +320,9 @@ async function handleLogin() {
     document.getElementById("xp-project-section").innerHTML = 
       generateSVGBarChart(xpProjects, "#3b82f6");
 
-    const xpProgress = groupXPProgressOverTime(userData.xpTransactions);
-    document.getElementById("xp-progress-section").innerHTML = 
-      generateSVGLineChart(xpProgress, "#8b5cf6");
+    const auditData = generateAuditRatioData(userData.userInfo);
+    document.getElementById("audit-ratio").innerHTML = 
+      generateAuditRatioChart(auditData, "#8b5cf6");
 
     // Show profile, hide login
     document.getElementById("login-container").style.display = "none";
