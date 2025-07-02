@@ -103,11 +103,6 @@ function populateUserInfo(userInfo, totalXP) {
   const user = userInfo?.[0];
   if (!user) return;
 
-  // Calculate total done (including bonus) to match chart calculation
-  const totalUp = user.totalUp || 0;
-  const totalUpBonus = user.totalUpBonus || 0;
-  const totalDone = totalUp + totalUpBonus;
-
   document.getElementById("user-campus").textContent = user.campus || "-";
   document.getElementById("user-id").textContent = user.id || "-";
   document.getElementById("user-firstname").textContent = user.firstName || "-";
@@ -115,7 +110,7 @@ function populateUserInfo(userInfo, totalXP) {
   document.getElementById("user-email").textContent = user.email || "-";
   document.getElementById("user-totalxp").textContent = totalXP ? `${totalXP.toLocaleString()} XP` : "-";
   document.getElementById("user-auditratio").textContent = user.auditRatio ? user.auditRatio.toFixed(2) : "-";
-  document.getElementById("user-totalup").textContent = totalDone ? `${totalDone.toLocaleString()} bytes` : "-";
+  document.getElementById("user-totalup").textContent = user.totalUp ? `${user.totalUp.toLocaleString()} bytes` : "-";
   document.getElementById("user-bonus").textContent = user.totalUpBonus ? `${user.totalUpBonus.toLocaleString()} bytes` : "-";
   document.getElementById("user-totaldown").textContent = user.totalDown ? `${user.totalDown.toLocaleString()} bytes` : "-";
 }
@@ -242,10 +237,7 @@ function generateAuditRatioChart(auditData, color = "#8b5cf6") {
 
   return `
     <div class="audit-chart-container">
-      <div class="audit-chart-content">
-        <h4 class="audit-chart-title">[ Audit Ratio ]</h4>
-        
-        <svg width="100%" height="120" viewBox="0 0 ${chartWidth} 120">
+       <svg width="100%" height="120" viewBox="0 0 ${chartWidth} 120">
           <!-- Done bar -->
           <text x="10" y="25" class="audit-bar-label">Done</text>
           <rect x="${labelWidth}" y="10" width="${doneWidth}" height="${barHeight}" 
@@ -274,7 +266,6 @@ function generateAuditRatioChart(auditData, color = "#8b5cf6") {
             ${statusText}
           </div>
         </div>
-      </div>
     </div>
   `;
 }
